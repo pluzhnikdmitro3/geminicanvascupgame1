@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Overflow - The Water Cup Challenge</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        .font-math {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        
+        /* Glassmorphism card effects */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.07);
+        }
+
+        .btn-option {
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .btn-option:hover:not(:disabled) {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3);
+        }
+        .btn-option:active:not(:disabled) {
+            transform: translateY(1px) scale(0.98);
+        }
+
+        /* Highlight animations */
+        @keyframes correctGlow {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            50% { transform: scale(1.03); box-shadow: 0 0 25px 8px rgba(34, 197, 94, 0.8); }
+            100% { transform: scale(1); box-shadow: 0 0 15px 4px rgba(34, 197, 94, 0.6); }
+        }
+
+        .correct-highlight {
+            background-color: #22c55e !important;
+            color: #ffffff !important;
+            border-color: #16a34a !important;
+            animation: correctGlow 0.8s ease-in-out infinite alternate;
+            z-index: 10;
+        }
+
+        @keyframes wrongShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .wrong-highlight {
+            background-color: #ef4444 !important;
+            color: #ffffff !important;
+            border-color: #dc2626 !important;
+            animation: wrongShake 0.4s ease-in-out;
+        }
+
+        /* Pulse water indicator when critical */
+        @keyframes pulseCritical {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        .critical-warning {
+            animation: pulseCritical 0.8s infinite;
+        }
+
+        /* Canvas rendering container responsive behavior */
+        #roomCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Top Header Bar -->
+    <header class="w-full max-w-7xl mx-auto px-4 py-4 flex justify-between items-center z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                <i class="fa-solid font-bold fa-glass-water text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">Math Overflow</h1>
+                <p class="text-xs text-slate-500 font-medium">Keep the water low!</p>
+            </div>
+        </div>
+
+        <!-- Global Stats -->
+        <div class="flex items-center gap-4 sm:gap-6">
+            <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3">
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 font-semibold uppercase block leading-none">Score</span>
+                    <span id="scoreText" class="text-lg font-bold font-math text-slate-800">0</span>
+                </div>
+            </div>
+
+            <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3">
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 font-semibold uppercase block leading-none">Streak</span>
+                    <span id="streakText" class="text-lg font-bold font-math text-amber-500">0🔥</span>
+                </div>
+            </div>
+
+            <!-- Sound Toggle Button -->
+            <button id="soundBtn" class="glass-panel w-10 h-10 rounded-2xl flex items-center justify-center text-slate-600 hover:text-blue-600 hover:bg-white transition">
+                <i class="fa-solid fa-volume-high text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="w-full max-w-7xl mx-auto px-4 my-auto py-2 flex-1 flex flex-col lg:flex-row gap-6 items-stretch justify-center">
+
+        <!-- LEFT PANEL: Question & Multiple Choice Buttons -->
+        <section class="w-full lg:w-5/12 flex flex-col justify-between glass-panel rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden z-10 min-h-[420px]">
+            <!-- Decorative Accent background blur -->
+            <div class="absolute -top-20 -left-20 w-40 h-40 bg-blue-300/30 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-cyan-300/30 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Header Info within panel -->
+            <div class="flex justify-between items-center mb-4">
+                <span id="levelBadge" class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">Level 1</span>
+                
+                <!-- Water Warning Indicator -->
+                <div id="waterWarning" class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full text-xs font-bold text-slate-600">
+                    <span id="waterPercText" class="font-math">40%</span> Water
+                    <div class="w-16 h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div id="waterBarInner" class="h-full bg-blue-500 transition-all duration-300 rounded-full" style="width: 40%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Math Question Area -->
+            <div class="my-auto py-6 text-center">
+                <p class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-2">Solve for the answer</p>
+                <div id="questionContainer" class="text-4xl sm:text-5xl font-extrabold font-math text-slate-800 tracking-tight transition-all duration-200">
+                    12 + 8 = ?
+                </div>
+            </div>
+
+            <!-- Answer Buttons Grid -->
+            <div class="grid grid-cols-1 gap-3 sm:gap-4 mt-4" id="answersGrid">
+                <button data-index="0" class="btn-option glass-panel bg-white/90 hover:bg-blue-50 border-2 border-slate-200/80 rounded-2xl py-4 px-6 text-xl font-bold font-math text-slate-700 text-left flex justify-between items-center group">
+                    <span class="option-text">20</span>
+                    <span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-400 group-hover:bg-blue-500 group-hover:text-white flex items-center justify-center text-xs font-sans transition">A</span>
+                </button>
+                <button data-index="1" class="btn-option glass-panel bg-white/90 hover:bg-blue-50 border-2 border-slate-200/80 rounded-2xl py-4 px-6 text-xl font-bold font-math text-slate-700 text-left flex justify-between items-center group">
+                    <span class="option-text">18</span>
+                    <span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-400 group-hover:bg-blue-500 group-hover:text-white flex items-center justify-center text-xs font-sans transition">B</span>
+                </button>
+                <button data-index="2" class="btn-option glass-panel bg-white/90 hover:bg-blue-50 border-2 border-slate-200/80 rounded-2xl py-4 px-6 text-xl font-bold font-math text-slate-700 text-left flex justify-between items-center group">
+                    <span class="option-text">24</span>
+                    <span class="w-8 h-8 rounded-xl bg-slate-100 text-slate-400 group-hover:bg-blue-500 group-hover:text-white flex items-center justify-center text-xs font-sans transition">C</span>
+                </button>
+            </div>
+
+            <!-- Dynamic Floating Message / Toast inside left card -->
+            <div id="feedbackMsg" class="h-6 mt-3 text-center text-sm font-bold opacity-0 transition-opacity duration-200">
+                Correct! -15% Water
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: 3D White Room & Dynamic Liquid Cup Canvas -->
+        <section class="w-full lg:w-7/12 rounded-3xl overflow-hidden glass-panel relative min-h-[400px] lg:min-h-[500px] flex items-center justify-center">
+            <!-- Room Canvas -->
+            <canvas id="roomCanvas"></canvas>
+
+            <!-- Game Over Overlay -->
+            <div id="gameOverModal" class="absolute inset-0 bg-slate-950/70 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center opacity-0 pointer-events-none transition-opacity duration-500 z-30">
+                <div class="w-20 h-20 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center text-3xl mb-4 animate-bounce">
+                    <i class="fa-solid fa-water"></i>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2">Cup Overflown!</h2>
+                <p class="text-slate-300 max-w-xs text-sm mb-6">The water spilled all over the table! Practice your math speed to keep it dry next time.</p>
+                
+                <!-- Game Stats Modal -->
+                <div class="bg-white/10 rounded-2xl p-4 w-full max-w-xs mb-6 grid grid-cols-2 gap-4 border border-white/10">
+                    <div>
+                        <span class="text-xs text-slate-400 block font-semibold uppercase">Final Score</span>
+                        <span id="finalScore" class="text-2xl font-bold font-math text-white">0</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400 block font-semibold uppercase">Best Streak</span>
+                        <span id="finalStreak" class="text-2xl font-bold font-math text-amber-400">0</span>
+                    </div>
+                </div>
+
+                <button id="restartBtn" class="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold py-3.5 px-8 rounded-2xl shadow-lg shadow-blue-500/30 transform hover:scale-105 transition active:scale-95 flex items-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> Play Again
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer Information -->
+    <footer class="w-full max-w-7xl mx-auto px-4 py-3 text-center text-xs text-slate-400 font-medium z-10">
+        Math Overflow &copy; 2026 &bull; Answer correctly to empty the cup!
+    </footer>
+
+    <script>
+        // Web Audio Synthesizer for procedural sound FX
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            }
+
+            playCorrect() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                
+                // Arpeggio chord
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.24); // C6
+
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.45);
+            }
+
+            playWrong() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(90, now + 0.35);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+
+            playWaterPour() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                // Generate white noise for splashing liquid
+                const bufferSize = this.ctx.sampleRate * 0.8;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const output = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                const whiteNoise = this.ctx.createBufferSource();
+                whiteNoise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(800, now);
+                filter.frequency.linearRampToValueAtTime(400, now + 0.8);
+                filter.Q.value = 3;
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.01, now);
+                gain.gain.linearRampToValueAtTime(0.25, now + 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+
+                whiteNoise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                whiteNoise.start(now);
+                whiteNoise.stop(now + 0.8);
+            }
+        }
+
+        const audioEngine = new SoundEngine();
+
+        // Game State Management
+        const state = {
+            score: 0,
+            streak: 0,
+            bestStreak: 0,
+            waterLevel: 40, // percentage 0-100
+            targetWaterLevel: 40,
+            level: 1,
+            currentQuestion: null,
+            isProcessing: false,
+            isGameOver: false,
+            spillProgress: 0 // 0 to 1 for game over animation
+        };
+
+        // Math Generator logic
+        function generateMathQuestion() {
+            // Difficulty escalates with level
+            let num1, num2, answer, op;
+            const ops = ['+', '-'];
+            if (state.level >= 3) ops.push('*');
+            if (state.level >= 5) ops.push('mix');
+
+            const selectedOp = ops[Math.floor(Math.random() * ops.length)];
+
+            if (selectedOp === '+') {
+                const max = 10 + state.level * 8;
+                num1 = Math.floor(Math.random() * max) + 5;
+                num2 = Math.floor(Math.random() * max) + 5;
+                answer = num1 + num2;
+                op = '+';
+            } else if (selectedOp === '-') {
+                const max = 10 + state.level * 8;
+                num1 = Math.floor(Math.random() * max) + 10;
+                num2 = Math.floor(Math.random() * num1) + 1;
+                answer = num1 - num2;
+                op = '-';
+            } else if (selectedOp === '*') {
+                const max = 5 + Math.min(state.level, 8);
+                num1 = Math.floor(Math.random() * max) + 2;
+                num2 = Math.floor(Math.random() * 10) + 2;
+                answer = num1 * num2;
+                op = '×';
+            } else { // Mixed or two-step
+                const a = Math.floor(Math.random() * 8) + 2;
+                const b = Math.floor(Math.random() * 6) + 2;
+                const c = Math.floor(Math.random() * 15) + 5;
+                num1 = `(${a} × ${b}) + ${c}`;
+                answer = (a * b) + c;
+                op = '=';
+            }
+
+            // Generate 2 wrong distractor options
+            const wrongSet = new Set();
+            while (wrongSet.size < 2) {
+                let offset = (Math.floor(Math.random() * 5) + 1) * (Math.random() < 0.5 ? 1 : -1);
+                let wrong = answer + offset;
+                if (wrong >= 0 && wrong !== answer) {
+                    wrongSet.add(wrong);
+                }
+            }
+
+            const wrongAnswers = Array.from(wrongSet);
+            const options = [
+                { text: answer, correct: true },
+                { text: wrongAnswers[0], correct: false },
+                { text: wrongAnswers[1], correct: false }
+            ];
+
+            // Shuffle options
+            for (let i = options.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [options[i], options[j]] = [options[j], options[i]];
+            }
+
+            return {
+                displayText: op === '=' ? `${num1} = ?` : `${num1} ${op} ${num2} = ?`,
+                options: options,
+                correctIndex: options.findIndex(o => o.correct)
+            };
+        }
+
+        // Canvas Graphics Engine for 3D White Room, Table, Glass Cup & Water FX
+        const canvas = document.getElementById('roomCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let time = 0;
+        let particles = [];
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Particles for water spill
+        class SplashParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = -Math.random() * 6 - 2;
+                this.gravity = 0.3;
+                this.radius = Math.random() * 3 + 2;
+                this.alpha = 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.alpha -= 0.015;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function renderScene() {
+            time += 0.04;
+
+            // Lerp target water level
+            state.waterLevel += (state.targetWaterLevel - state.waterLevel) * 0.08;
+
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // 1. Draw "White Room" Environment with smooth lighting gradients
+            // Wall background
+            const wallGrad = ctx.createLinearGradient(0, 0, 0, h * 0.7);
+            wallGrad.addColorStop(0, '#f8fafc');
+            wallGrad.addColorStop(1, '#e2e8f0');
+            ctx.fillStyle = wallGrad;
+            ctx.fillRect(0, 0, w, h * 0.7);
+
+            // Floor background
+            const floorGrad = ctx.createLinearGradient(0, h * 0.7, 0, h);
+            floorGrad.addColorStop(0, '#cbd5e1');
+            floorGrad.addColorStop(1, '#94a3b8');
+            ctx.fillStyle = floorGrad;
+            ctx.fillRect(0, h * 0.7, w, h * 0.3);
+
+            // Horizon line shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+            ctx.fillRect(0, h * 0.7 - 2, w, 4);
+
+            // Soft wall corner ambient shading
+            const ambientGrad = ctx.createRadialGradient(w/2, h/2, 100, w/2, h/2, w);
+            ambientGrad.addColorStop(0, 'rgba(255,255,255,0)');
+            ambientGrad.addColorStop(1, 'rgba(0,0,0,0.06)');
+            ctx.fillStyle = ambientGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // 2. Draw Table
+            const tableWidth = Math.min(w * 0.75, 520);
+            const tableX = (w - tableWidth) / 2;
+            const tableY = h * 0.65;
+            const tableHeight = 24;
+
+            // Table top perspective polygon
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(tableX - 30, tableY);
+            ctx.lineTo(tableX + tableWidth + 30, tableY);
+            ctx.lineTo(tableX + tableWidth + 50, tableY + 70);
+            ctx.lineTo(tableX - 50, tableY + 70);
+            ctx.closePath();
+
+            const tableGrad = ctx.createLinearGradient(0, tableY, 0, tableY + 70);
+            tableGrad.addColorStop(0, '#ffffff');
+            tableGrad.addColorStop(0.3, '#f1f5f9');
+            tableGrad.addColorStop(1, '#e2e8f0');
+            ctx.fillStyle = tableGrad;
+            ctx.fill();
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Table front edge
+            ctx.beginPath();
+            ctx.moveTo(tableX - 50, tableY + 70);
+            ctx.lineTo(tableX + tableWidth + 50, tableY + 70);
+            ctx.lineTo(tableX + tableWidth + 50, tableY + 70 + tableHeight);
+            ctx.lineTo(tableX - 50, tableY + 70 + tableHeight);
+            ctx.closePath();
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fill();
+
+            // Table legs shadow on floor
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+            ctx.beginPath();
+            ctx.ellipse(w / 2, tableY + 110, tableWidth * 0.5, 25, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // 3. Cup & Liquid Parameters
+            const cupX = w / 2;
+            const cupY = tableY + 25; // Cup base rests on table
+            const cupWidthTop = 110;
+            const cupWidthBottom = 80;
+            const cupHeight = 180;
+
+            const cupTopY = cupY - cupHeight;
+
+            // Cup Base Shadow on table
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.beginPath();
+            ctx.ellipse(cupX, cupY, cupWidthBottom / 2 + 10, 14, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Spill Puddle on Table (If Overflowing or over 100%)
+            if (state.targetWaterLevel > 100) {
+                if (state.spillProgress < 1) {
+                    state.spillProgress += 0.015;
+                }
+                
+                // Trigger spill sound once
+                if (state.spillProgress > 0.1 && state.spillProgress < 0.03) {
+                    audioEngine.playWaterPour();
+                }
+
+                const puddleRadiusX = (cupWidthBottom + 120) * state.spillProgress;
+                const puddleRadiusY = 22 * state.spillProgress;
+
+                ctx.save();
+                // Spilling water puddle on table surface
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.65)';
+                ctx.beginPath();
+                ctx.ellipse(cupX, cupY + 5, puddleRadiusX, puddleRadiusY, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Glossy reflection highlight on puddle
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.ellipse(cupX - puddleRadiusX * 0.3, cupY + 2, puddleRadiusX * 0.4, puddleRadiusY * 0.3, -0.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // Spawn splash particles
+                if (Math.random() < 0.6 && state.spillProgress < 0.9) {
+                    particles.push(new SplashParticle(cupX + (Math.random() - 0.5) * cupWidthTop, cupTopY + 10));
+                }
+            }
+
+            // 4. Render Glass Cup Interior & Animated Liquid Level
+            // Clamp visual water percentage for inside cup (can visually fill up to lip before spill)
+            const fillPerc = Math.min(100, Math.max(0, state.waterLevel)) / 100;
+            const currentLiquidY = cupY - (cupHeight - 20) * fillPerc;
+
+            ctx.save();
+            // Create cup clipping region matching cup shape
+            ctx.beginPath();
+            ctx.moveTo(cupX - cupWidthTop / 2, cupTopY);
+            ctx.lineTo(cupX + cupWidthTop / 2, cupTopY);
+            ctx.lineTo(cupX + cupWidthBottom / 2, cupY);
+            ctx.lineTo(cupX - cupWidthBottom / 2, cupY);
+            ctx.closePath();
+
+            // Glass background subtle inner tint
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+            ctx.clip(); // Clip all liquid drawing inside glass interior
+
+            // Draw Liquid Body
+            if (fillPerc > 0) {
+                ctx.beginPath();
+                // Wave animated top surface
+                const waveFreq = 0.05;
+                const waveAmp = (state.targetWaterLevel > 100 ? 5 : 2.5);
+                
+                ctx.moveTo(cupX - cupWidthTop, currentLiquidY);
+                for (let x = cupX - cupWidthTop; x <= cupX + cupWidthTop; x += 5) {
+                    const y = currentLiquidY + Math.sin((x + time * 60) * waveFreq) * waveAmp;
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(cupX + cupWidthTop, cupY + 20);
+                ctx.lineTo(cupX - cupWidthTop, cupY + 20);
+                ctx.closePath();
+
+                // Blue water gradient
+                const liquidGrad = ctx.createLinearGradient(0, currentLiquidY, 0, cupY);
+                liquidGrad.addColorStop(0, '#60a5fa');
+                liquidGrad.addColorStop(0.5, '#3b82f6');
+                liquidGrad.addColorStop(1, '#1d4ed8');
+                ctx.fillStyle = liquidGrad;
+                ctx.fill();
+
+                // Water top ellipse highlight
+                ctx.fillStyle = 'rgba(191, 219, 254, 0.6)';
+                ctx.beginPath();
+                const curWidthAtLevel = cupWidthBottom + (cupWidthTop - cupWidthBottom) * fillPerc;
+                ctx.ellipse(cupX, currentLiquidY, curWidthAtLevel / 2 - 2, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore(); // End Glass Clipping
+
+            // 5. Overflow Streams (Visual streams pouring over the sides of the cup)
+            if (state.targetWaterLevel > 100) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
+                
+                // Left overflow stream
+                ctx.beginPath();
+                ctx.moveTo(cupX - cupWidthTop / 2 + 2, cupTopY);
+                ctx.quadraticCurveTo(cupX - cupWidthTop / 2 - 15, cupTopY + cupHeight * 0.5, cupX - cupWidthBottom / 2 - 20, cupY + 5);
+                ctx.lineTo(cupX - cupWidthBottom / 2 - 5, cupY + 5);
+                ctx.quadraticCurveTo(cupX - cupWidthTop / 2 - 5, cupTopY + cupHeight * 0.5, cupX - cupWidthTop / 2 + 15, cupTopY);
+                ctx.closePath();
+                ctx.fill();
+
+                // Right overflow stream
+                ctx.beginPath();
+                ctx.moveTo(cupX + cupWidthTop / 2 - 2, cupTopY);
+                ctx.quadraticCurveTo(cupX + cupWidthTop / 2 + 15, cupTopY + cupHeight * 0.5, cupX + cupWidthBottom / 2 + 20, cupY + 5);
+                ctx.lineTo(cupX + cupWidthBottom / 2 + 5, cupY + 5);
+                ctx.quadraticCurveTo(cupX + cupWidthTop / 2 + 5, cupTopY + cupHeight * 0.5, cupX + cupWidthTop / 2 - 15, cupTopY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 6. Draw Glass Cup Outer Shell & Gloss Highlights
+            ctx.save();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+
+            // Cup outline path
+            ctx.beginPath();
+            ctx.moveTo(cupX - cupWidthTop / 2, cupTopY);
+            ctx.lineTo(cupX - cupWidthBottom / 2, cupY);
+            ctx.quadraticCurveTo(cupX, cupY + 8, cupX + cupWidthBottom / 2, cupY);
+            ctx.lineTo(cupX + cupWidthTop / 2, cupTopY);
+            ctx.stroke();
+
+            // Glass top rim ellipse
+            ctx.beginPath();
+            ctx.ellipse(cupX, cupTopY, cupWidthTop / 2, 10, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Realistic Glass Refraction Highlight Line
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(cupX - cupWidthTop / 2 + 12, cupTopY + 20);
+            ctx.lineTo(cupX - cupWidthBottom / 2 + 10, cupY - 15);
+            ctx.stroke();
+
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cupX + cupWidthTop / 2 - 12, cupTopY + 25);
+            ctx.lineTo(cupX + cupWidthBottom / 2 - 10, cupY - 20);
+            ctx.stroke();
+            ctx.restore();
+
+            // Update & Draw Splash Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw(ctx);
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Continue animation loop
+            requestAnimationFrame(renderScene);
+        }
+
+        // UI Elements
+        const questionEl = document.getElementById('questionContainer');
+        const answerBtns = document.querySelectorAll('.btn-option');
+        const scoreText = document.getElementById('scoreText');
+        const streakText = document.getElementById('streakText');
+        const waterPercText = document.getElementById('waterPercText');
+        const waterBarInner = document.getElementById('waterBarInner');
+        const waterWarning = document.getElementById('waterWarning');
+        const levelBadge = document.getElementById('levelBadge');
+        const feedbackMsg = document.getElementById('feedbackMsg');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const finalScore = document.getElementById('finalScore');
+        const finalStreak = document.getElementById('finalStreak');
+        const restartBtn = document.getElementById('restartBtn');
+        const soundBtn = document.getElementById('soundBtn');
+
+        // Render current question onto UI
+        function loadNewQuestion() {
+            state.currentQuestion = generateMathQuestion();
+            questionEl.innerText = state.currentQuestion.displayText;
+
+            answerBtns.forEach((btn, index) => {
+                const opt = state.currentQuestion.options[index];
+                btn.querySelector('.option-text').innerText = opt.text;
+                btn.className = "btn-option glass-panel bg-white/90 hover:bg-blue-50 border-2 border-slate-200/80 rounded-2xl py-4 px-6 text-xl font-bold font-math text-slate-700 text-left flex justify-between items-center group";
+                btn.disabled = false;
+            });
+
+            state.isProcessing = false;
+        }
+
+        // Update UI text and gauges
+        function updateUI() {
+            scoreText.innerText = state.score;
+            streakText.innerText = `${state.streak}🔥`;
+            
+            const displayedWater = Math.max(0, Math.round(state.targetWaterLevel));
+            waterPercText.innerText = `${displayedWater}%`;
+            waterBarInner.style.width = `${Math.min(100, displayedWater)}%`;
+
+            // Adjust level based on score
+            state.level = Math.floor(state.score / 50) + 1;
+            levelBadge.innerText = `Level ${state.level}`;
+
+            // Warning color shift
+            if (displayedWater >= 75) {
+                waterBarInner.className = "h-full bg-red-500 transition-all duration-300 rounded-full";
+                waterWarning.classList.add("text-red-600", "critical-warning");
+            } else if (displayedWater >= 50) {
+                waterBarInner.className = "h-full bg-amber-500 transition-all duration-300 rounded-full";
+                waterWarning.classList.remove("text-red-600", "critical-warning");
+                waterWarning.classList.add("text-amber-600");
+            } else {
+                waterBarInner.className = "h-full bg-blue-500 transition-all duration-300 rounded-full";
+                waterWarning.classList.remove("text-red-600", "text-amber-600", "critical-warning");
+            }
+        }
+
+        // Show feedback floating message
+        function showFeedback(text, isGood) {
+            feedbackMsg.innerText = text;
+            feedbackMsg.className = `h-6 mt-3 text-center text-sm font-bold opacity-100 transition-opacity duration-200 ${isGood ? 'text-green-600' : 'text-red-600'}`;
+            setTimeout(() => {
+                feedbackMsg.classList.add('opacity-0');
+            }, 1000);
+        }
+
+        // Handle Answer Selection
+        function handleAnswer(selectedIndex) {
+            if (state.isProcessing || state.isGameOver) return;
+            state.isProcessing = true;
+
+            const selectedBtn = answerBtns[selectedIndex];
+            const isCorrect = state.currentQuestion.options[selectedIndex].correct;
+
+            if (isCorrect) {
+                // CORRECT ANSWER
+                audioEngine.playCorrect();
+                selectedBtn.classList.add('correct-highlight');
+
+                state.score += 10 + state.streak * 2;
+                state.streak += 1;
+                if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+
+                // Decrease water level by 15%
+                state.targetWaterLevel = Math.max(0, state.targetWaterLevel - 15);
+                
+                showFeedback("Correct! Water lowered -15%", true);
+                updateUI();
+
+                setTimeout(() => {
+                    loadNewQuestion();
+                }, 700);
+
+            } else {
+                // WRONG ANSWER
+                audioEngine.playWrong();
+                selectedBtn.classList.add('wrong-highlight');
+
+                // Glow the right answer green as specified in requirements!
+                const correctIdx = state.currentQuestion.correctIndex;
+                answerBtns[correctIdx].classList.add('correct-highlight');
+
+                state.streak = 0;
+
+                // Increase water level by 25%
+                state.targetWaterLevel += 25;
+                
+                showFeedback("Wrong! Water raised +25%", false);
+                updateUI();
+
+                // Check Game Over (Cup Overflow)
+                if (state.targetWaterLevel > 100) {
+                    triggerGameOver();
+                } else {
+                    // Proceed after delay to show glowing correct answer
+                    setTimeout(() => {
+                        loadNewQuestion();
+                    }, 1300);
+                }
+            }
+        }
+
+        // Trigger Game Over with Spill Animation
+        function triggerGameOver() {
+            state.isGameOver = true;
+            audioEngine.playWaterPour();
+
+            // Disable all buttons
+            answerBtns.forEach(btn => btn.disabled = true);
+
+            // Wait brief moment for cup overflow graphic animation to spill over table
+            setTimeout(() => {
+                finalScore.innerText = state.score;
+                finalStreak.innerText = state.bestStreak;
+                gameOverModal.classList.remove('opacity-0', 'pointer-events-none');
+            }, 1200);
+        }
+
+        // Reset & Restart Game
+        function resetGame() {
+            state.score = 0;
+            state.streak = 0;
+            state.bestStreak = 0;
+            state.waterLevel = 40;
+            state.targetWaterLevel = 40;
+            state.level = 1;
+            state.isGameOver = false;
+            state.spillProgress = 0;
+
+            gameOverModal.classList.add('opacity-0', 'pointer-events-none');
+            updateUI();
+            loadNewQuestion();
+        }
+
+        // Event Listeners for Answer Buttons
+        answerBtns.forEach((btn, index) => {
+            btn.addEventListener('click', () => handleAnswer(index));
+        });
+
+        // Keyboard navigation (Keys 1, 2, 3 or A, B, C)
+        window.addEventListener('keydown', (e) => {
+            if (state.isGameOver) return;
+            if (e.key === '1' || e.key === 'a' || e.key === 'A') handleAnswer(0);
+            if (e.key === '2' || e.key === 'b' || e.key === 'B') handleAnswer(1);
+            if (e.key === '3' || e.key === 'c' || e.key === 'C') handleAnswer(2);
+        });
+
+        restartBtn.addEventListener('click', resetGame);
+
+        // Sound Toggle
+        soundBtn.addEventListener('click', () => {
+            audioEngine.enabled = !audioEngine.enabled;
+            soundBtn.innerHTML = audioEngine.enabled ? 
+                '<i class="fa-solid fa-volume-high text-lg"></i>' : 
+                '<i class="fa-solid fa-volume-xmark text-lg text-red-500"></i>';
+        });
+
+        // Start render loop & load first question on window load
+        window.onload = () => {
+            requestAnimationFrame(renderScene);
+            updateUI();
+            loadNewQuestion();
+        };
+    </script>
+</body>
+</html>
